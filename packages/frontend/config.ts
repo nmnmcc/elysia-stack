@@ -1,7 +1,13 @@
 const backendUrl = process.env["BACKEND_URL"];
 
-export default {
+const config = {
   backend: {
     url: backendUrl ? new URL(backendUrl) : undefined,
   },
-} as const;
+} satisfies {
+  readonly backend: {
+    readonly url: URL | undefined;
+  };
+};
+
+export default config;
