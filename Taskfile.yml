@@ -1,0 +1,92 @@
+version: "3"
+
+includes:
+  frontend:
+    taskfile: "./packages/frontend/Taskfile.yml"
+    dir: "./packages/frontend"
+  backend:
+    taskfile: "./packages/backend/Taskfile.yml"
+    dir: "./packages/backend"
+
+tasks:
+  default:
+    cmd: task --list-all
+
+  dev:
+    desc: Start development environment, Ctrl+C stops all
+    cmds:
+      - task: dev:setup
+      - nomad-pack run deploy/dev --var project_root={{.ROOT_DIR}}
+      - defer: nomad job stop dev || true
+      - cmd: |-
+          alloc=$(nomad job allocs -json dev | jq -r '.[] | select(.TaskGroup == "app") | .ID' | head -1)
+          exec nomad alloc logs -f "$alloc" backend
+
+  dev:stop:
+    desc: Stop all services
+    cmd: nomad job stop dev || true
+
+  dev:status:
+    desc: Show status of all services
+    cmd: nomad job status dev
+
+  dev:logs:
+    desc: "Follow logs (usage: task dev:logs -- backend)"
+    cmd: |-
+      alloc=$(nomad job allocs -json dev | jq -r --arg t "{{.CLI_ARGS}}" '.[] | select(.TaskStates[$t] != null) | .ID' | head -1)
+      exec nomad alloc logs -f "$alloc" "{{.CLI_ARGS}}"
+
+  dev:destroy:
+    desc: Destroy all services and data
+    cmds:
+      - nomad job stop -purge dev 2>/dev/null || true
+      - >-
+        docker volume rm
+        elysia-stack-postgres elysia-stack-rustfs
+        2>/dev/null || true
+      - docker network rm elysia-stack 2>/dev/null || true
+
+  dev:reset:
+    desc: Destroy all data and restart
+    cmds:
+      - task: dev:destroy
+      - task: dev
+
+  dev:setup:
+    internal: true
+    cmds:
+      - task: dev:agent
+      - docker network create elysia-stack 2>/dev/null || true
+
+  dev:agent:
+    internal: true
+    status:
+      - nomad agent-info > /dev/null 2>&1
+    cmds:
+      - mkdir -p .dev
+      - nohup nomad agent -dev -log-level=warn -bind=127.0.0.1 -config=deploy/nomad-dev.hcl > .dev/nomad.log 2>&1 &
+      - until nomad agent-info > /dev/null 2>&1; do sleep 1; done
+
+  build:
+    desc: Build all packages
+    deps:
+      - backend:build
+      - frontend:build
+
+  typecheck:
+    desc: Type check all packages
+    cmd: yarn tsc -b --noEmit
+
+  lint:
+    desc: Lint all packages
+    deps:
+      - frontend:lint
+      - backend:lint
+
+  format:
+    desc: Format code with Prettier
+    cmd: yarn prettier --write .
+
+  format:check:
+    desc: Check code formatting
+    cmd: yarn prettier --check .

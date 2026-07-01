@@ -1,0 +1,7 @@
+.git
+.next
+.devenv*
+.direnv
+.dev
+node_modules
+*.tsbuildinfo

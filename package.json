@@ -1,0 +1,17 @@
+{
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "yarn@4.13.0",
+  "workspaces": [
+    "./packages/*"
+  ],
+  "devDependencies": {
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
+    "@types/node": "24",
+    "prettier": "^3.8.4",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}

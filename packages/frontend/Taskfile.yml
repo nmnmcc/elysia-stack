@@ -1,0 +1,22 @@
+version: "3"
+
+tasks:
+  dev:
+    desc: Start Next.js dev server with Turbopack
+    cmd: yarn next dev --turbopack
+
+  build:
+    desc: Build Next.js for production
+    cmd: yarn next build
+
+  build:docker:
+    desc: Build docker image
+    cmd: docker build -f ../../Dockerfile.frontend -t elysia-stack/frontend ../..
+
+  start:
+    desc: Start Next.js production server
+    cmd: yarn next start
+
+  lint:
+    desc: Run ESLint
+    cmd: yarn eslint src/
