@@ -5,7 +5,8 @@ This template is intentionally organized for long-lived products, not only for a
 ## Principles
 
 - **Thin composition, rich modules**: `packages/backend/src/app.ts` wires plugins and modules. Product behavior belongs in `src/modules/<module>/`.
-- **Vertical product slices**: backend modules and frontend features should own their route handlers, API calls, query keys, hooks, and UI for one product capability.
+- **NestJS-inspired backend discipline**: modules expose module factories, controllers own HTTP concerns, providers build injectable services, services own business rules, repositories own persistence, DTO files own contracts, and mappers own response shaping.
+- **Vertical product slices**: backend modules and frontend features should own their controllers, services, repositories, API calls, query keys, hooks, and UI for one product capability.
 - **Horizontal infrastructure**: shared external integrations belong in backend `services/`; framework-neutral helpers belong in backend `libraries/`.
 - **Typed boundaries**: Elysia schemas define HTTP contracts, Drizzle owns database shape, and Eden Treaty keeps the frontend tied to the exported backend `App` type.
 - **Replaceable dependencies**: runtime dependencies are created in `services/dependencies` and injected into Elysia so tests and future adapters can override them.
@@ -21,11 +22,17 @@ packages/backend/src/
 │   └── http/               # Shared HTTP schemas and response helpers
 ├── modules/                # Product modules, organized by capability
 │   ├── health/
-│   │   └── routes.ts
+│   │   ├── health.controller.ts
+│   │   └── health.module.ts
 │   └── todos/
-│       ├── models.ts       # Route schemas, DTO mapping, module input types
-│       ├── repository.ts   # Drizzle persistence functions
-│       └── routes.ts       # Elysia route factory
+│       ├── todos.controller.ts # Elysia routes and HTTP status mapping
+│       ├── todos.dto.ts        # Request and response schemas
+│       ├── todos.mapper.ts     # Database record to response mapping
+│       ├── todos.module.ts     # Module factory registered by app.ts
+│       ├── todos.providers.ts  # Module-local provider construction
+│       ├── todos.repository.ts # Drizzle persistence functions
+│       ├── todos.service.ts    # Business rules and authorization decisions
+│       └── todos.types.ts      # Module-local TypeScript contracts
 └── services/               # Stateful infrastructure integrations
     ├── auth/
     ├── config/
@@ -33,7 +40,7 @@ packages/backend/src/
     └── dependencies/
 ```
 
-When adding `projects`, `billing`, `files`, or another product capability, create `src/modules/<module>/` first. Keep route schemas close to the route unless they are shared across modules. Put reusable cross-module contracts in `libraries/http`.
+When adding `projects`, `billing`, `files`, or another product capability, create `src/modules/<module>/` first. Use the backend module standard in [`docs/backend-modules.md`](backend-modules.md). Keep route schemas close to the controller unless they are shared across modules. Put reusable cross-module contracts in `libraries/http`.
 
 Data reads should prefer Drizzle Queries API through `database.query.*`. Mutations can use Drizzle's insert/update/delete builders because the Queries API is read-focused.
 
@@ -61,12 +68,13 @@ Every server state feature should define query keys in one place and use TanStac
 ## Adding a Module
 
 1. Create `packages/backend/src/modules/<module>/`.
-2. Add `models.ts`, `repository.ts`, and `routes.ts` when the module has HTTP and persistence behavior.
-3. Register the route factory in `packages/backend/src/app.ts`.
-4. Add Drizzle schema under `services/database/schema/` and export it from `schema/index.ts`.
-5. Add frontend code under `packages/frontend/src/features/<feature>/`.
-6. Keep the route page under `app/` as a thin shell that renders the feature.
-7. Run `task typecheck`, `task lint`, and `task build` before publishing.
+2. Add `<module>.module.ts` and `<module>.controller.ts`.
+3. Add `<module>.providers.ts`, `<module>.service.ts`, `<module>.repository.ts`, `<module>.dto.ts`, `<module>.mapper.ts`, and `<module>.types.ts` when the module has business logic or persistence behavior.
+4. Register the module factory in `packages/backend/src/app.ts`.
+5. Add Drizzle schema under `services/database/schema/` and export it from `schema/index.ts`.
+6. Add frontend code under `packages/frontend/src/features/<feature>/`.
+7. Keep the route page under `app/` as a thin shell that renders the feature.
+8. Run `task typecheck`, `task lint`, and `task build` before publishing.
 
 ## Dependency Injection
 

@@ -2,8 +2,8 @@ import { openapi } from "@elysia/openapi";
 import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 
-import { createHealthRoutes } from "./modules/health/routes";
-import { createTodoRoutes } from "./modules/todos/routes";
+import { createHealthModule } from "./modules/health/health.module";
+import { createTodosModule } from "./modules/todos/todos.module";
 import { createDependencies, createDependenciesPlugin, type AppDependencyOverrides } from "./services/dependencies";
 
 export function createApp(overrides: AppDependencyOverrides = {}) {
@@ -35,8 +35,8 @@ export function createApp(overrides: AppDependencyOverrides = {}) {
       }),
     )
     .mount(dependencies.auth.handler)
-    .use(createHealthRoutes())
-    .use(createTodoRoutes(dependencies));
+    .use(createHealthModule())
+    .use(createTodosModule(dependencies));
 
   return { app, dependencies };
 }

@@ -19,7 +19,11 @@
 - Wire backend services through `services/dependencies/index.ts`; route handlers should read injected services from Elysia context.
 - Export the Elysia `App` type from `src/app.ts` so Eden Treaty clients stay type-safe.
 - Keep `src/app.ts` as application composition only. Put domain code under `src/modules/<module>/`.
-- Module route factories live in `src/modules/<module>/routes.ts`; data access lives in `repository.ts`; reusable response and input models live beside the routes.
+- Backend modules follow a NestJS-inspired contract: `<module>.module.ts`, `<module>.controller.ts`, `<module>.providers.ts`, `<module>.service.ts`, `<module>.repository.ts`, `<module>.dto.ts`, `<module>.mapper.ts`, and `<module>.types.ts` as needed.
+- Controllers own HTTP routing, DTO binding, OpenAPI metadata, guard calls, and status mapping. They must not query the database directly.
+- Services own business rules and authorization decisions. They must not return Elysia `status(...)` responses.
+- Repositories own persistence and must not access request, auth, cookie, or HTTP status APIs.
+- Providers construct module-local services/repositories and decorate them onto Elysia context.
 - Put cross-module helpers under `src/libraries/`. Put stateful external integrations under `src/services/`.
 - Keep route schemas beside their route handlers unless a schema is reused across modules.
 - Return structured error objects like `{ message }` for non-2xx API responses.
