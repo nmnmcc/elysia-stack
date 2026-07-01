@@ -3,16 +3,8 @@ import { cors } from "@elysiajs/cors";
 import { eq } from "drizzle-orm";
 import { Elysia, t } from "elysia";
 
-import { createAuth } from "./services/auth";
-import { loadConfig, type AppConfig } from "./services/config";
-import { createDatabase, createPool, type Database } from "./services/database";
 import { todos } from "./services/database/schema/todo";
-
-export interface AppServices {
-  readonly config?: AppConfig;
-  readonly database?: Database;
-  readonly pool?: ReturnType<typeof createPool>;
-}
+import { createDependencies, createDependenciesPlugin, type AppDependencyOverrides } from "./services/dependencies";
 
 const todoModel = t.Object({
   id: t.String({ format: "uuid" }),
@@ -35,16 +27,14 @@ const toTodo = (todo: TodoRow) => ({
   updatedAt: todo.updatedAt.toISOString(),
 });
 
-export function createApp(services: AppServices = {}) {
-  const config = services.config ?? loadConfig();
-  const pool = services.pool ?? createPool(config);
-  const database = services.database ?? createDatabase(pool);
-  const auth = createAuth(pool, config.auth.baseURL);
+export function createApp(overrides: AppDependencyOverrides = {}) {
+  const dependencies = createDependencies(overrides);
 
   const app = new Elysia()
+    .use(createDependenciesPlugin(dependencies))
     .use(
       cors({
-        origin: config.server.corsOrigins,
+        origin: dependencies.config.server.corsOrigins,
         credentials: true,
         methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],
@@ -65,7 +55,7 @@ export function createApp(services: AppServices = {}) {
         },
       }),
     )
-    .mount(auth.handler)
+    .mount(dependencies.auth.handler)
     .get("/api/health", ({ status }) => status(204, undefined), {
       detail: { tags: ["Health"] },
       response: {
@@ -74,7 +64,7 @@ export function createApp(services: AppServices = {}) {
     })
     .get(
       "/api/todos",
-      async ({ query }) => {
+      async ({ database, query }) => {
         const rows = await database.query.todos.findMany({
           limit: query.limit ?? 25,
           offset: query.offset ?? 0,
@@ -96,7 +86,7 @@ export function createApp(services: AppServices = {}) {
     )
     .get(
       "/api/todos/:id",
-      async ({ params, status }) => {
+      async ({ database, params, status }) => {
         const row = await database.query.todos.findFirst({
           where: (table, operators) => operators.eq(table.id, params.id),
         });
@@ -120,7 +110,7 @@ export function createApp(services: AppServices = {}) {
     )
     .post(
       "/api/todos",
-      async ({ body, request, status }) => {
+      async ({ auth, body, database, request, status }) => {
         const session = await auth.api.getSession({ headers: request.headers });
         if (!session) {
           return status(401, { message: "Authentication required" });
@@ -149,7 +139,7 @@ export function createApp(services: AppServices = {}) {
     )
     .patch(
       "/api/todos/:id",
-      async ({ body, params, request, status }) => {
+      async ({ auth, body, database, params, request, status }) => {
         const session = await auth.api.getSession({ headers: request.headers });
         if (!session) {
           return status(401, { message: "Authentication required" });
@@ -194,7 +184,7 @@ export function createApp(services: AppServices = {}) {
     )
     .delete(
       "/api/todos/:id",
-      async ({ params, request, status }) => {
+      async ({ auth, database, params, request, status }) => {
         const session = await auth.api.getSession({ headers: request.headers });
         if (!session) {
           return status(401, { message: "Authentication required" });
@@ -229,7 +219,7 @@ export function createApp(services: AppServices = {}) {
       },
     );
 
-  return { app, auth, config, database, pool } as const;
+  return { app, dependencies } as const;
 }
 
 export type App = ReturnType<typeof createApp>["app"];

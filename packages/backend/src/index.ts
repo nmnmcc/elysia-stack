@@ -1,16 +1,18 @@
 import { createApp } from "./app";
 
-const { app, config, pool } = createApp();
+const { app, dependencies } = createApp();
 
 app.listen({
-  hostname: config.server.host,
-  port: config.server.port,
+  hostname: dependencies.config.server.host,
+  port: dependencies.config.server.port,
 });
 
-console.log(`elysia-stack API listening on http://${config.server.host}:${config.server.port}`);
+console.log(
+  `elysia-stack API listening on http://${dependencies.config.server.host}:${dependencies.config.server.port}`,
+);
 
 const shutdown = async () => {
-  await pool.end();
+  await dependencies.pool.end();
   process.exit(0);
 };
 

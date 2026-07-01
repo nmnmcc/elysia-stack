@@ -16,6 +16,7 @@
 
 - Run the Elysia server with Bun in development and production.
 - Keep runtime configuration in `services/config/index.ts`.
+- Wire backend services through `services/dependencies/index.ts`; route handlers should read injected services from Elysia context.
 - Export the Elysia `App` type from `src/app.ts` so Eden Treaty clients stay type-safe.
 - Keep route schemas beside their route handlers unless a schema is reused across modules.
 - Return structured error objects like `{ message }` for non-2xx API responses.
