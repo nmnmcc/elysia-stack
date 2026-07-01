@@ -38,6 +38,15 @@
 - Use Eden Treaty for typed API calls and TanStack Query for cache invalidation and automatic refresh.
 - URL search params use **nuqs** (`useQueryState`/`useQueryStates`).
 
+## Documentation
+
+- Documentation must follow a reader path, not a stream of discovered facts.
+- Each durable document must have one primary job. Split mixed topics into separate files and link between them.
+- Use this order for durable docs: purpose, context, concepts, procedure, checklist.
+- `README.md` is the public project entry point. `docs/README.md` is the documentation map.
+- Architecture belongs in `docs/architecture.md`; backend module rules belong in `docs/backend-modules.md`; commands and validation belong in `docs/development.md`.
+- When adding a new architectural boundary or workflow, update the documentation map first, then the focused document.
+
 ## Template Evolution
 
 - A new capability should have an obvious home before implementation starts. If it does not, add a narrowly named module, service, library, or feature folder first.

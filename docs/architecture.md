@@ -1,38 +1,65 @@
 # Architecture
 
-This template is intentionally organized for long-lived products, not only for a small demo. The starter todo flow is a vertical slice that shows where future modules should grow.
+This document explains the shape of the system. It starts with the product-level goal, then narrows into package boundaries, dependency direction, backend layout, frontend layout, and runtime flow.
 
-## Principles
+## Goal
 
-- **Thin composition, rich modules**: `packages/backend/src/app.ts` wires plugins and modules. Product behavior belongs in `src/modules/<module>/`.
-- **NestJS-inspired backend discipline**: modules expose module factories, controllers own HTTP concerns, providers build injectable services, services own business rules, repositories own persistence, DTO files own contracts, and mappers own response shaping.
-- **Vertical product slices**: backend modules and frontend features should own their controllers, services, repositories, API calls, query keys, hooks, and UI for one product capability.
-- **Horizontal infrastructure**: shared external integrations belong in backend `services/`; framework-neutral helpers belong in backend `libraries/`.
-- **Typed boundaries**: Elysia schemas define HTTP contracts, Drizzle owns database shape, and Eden Treaty keeps the frontend tied to the exported backend `App` type.
-- **Replaceable dependencies**: runtime dependencies are created in `services/dependencies` and injected into Elysia so tests and future adapters can override them.
+`elysia-stack` is a full-stack TypeScript template for products that are expected to grow beyond a demo. The architecture is optimized for:
+
+- predictable module placement
+- type-safe API contracts
+- dependency injection without global state
+- feature-oriented frontend growth
+- deployment parity between development and production
+
+## System Map
+
+```text
+User
+  -> Next.js frontend
+  -> Eden Treaty client
+  -> Elysia backend
+  -> module controller
+  -> module service
+  -> module repository
+  -> PostgreSQL
+```
+
+The frontend imports the backend `App` type through Eden Treaty, so backend route schemas are the source of truth for internal API calls.
+
+## Package Boundaries
+
+```text
+packages/
+├── backend/   # Elysia API, auth, database, runtime services
+└── frontend/  # Next.js app, route shells, product features
+```
+
+The backend owns persistence, authentication, authorization, and HTTP contracts. The frontend owns presentation, client state, URL state, and user workflows.
+
+## Dependency Direction
+
+```text
+app.ts
+  -> modules
+  -> services
+  -> libraries
+```
+
+`app.ts` composes application-level plugins and modules. Product modules may depend on backend services and shared libraries. Services must not import product modules. Libraries must stay framework-neutral unless their name clearly scopes them to a framework concern.
 
 ## Backend Layout
 
 ```text
 packages/backend/src/
-├── app.ts                  # Application composition, OpenAPI, CORS, module registration
+├── app.ts                  # Application composition and exported App type
 ├── index.ts                # Bun server entry point and shutdown lifecycle
 ├── libraries/              # Stateless cross-module helpers
-│   ├── auth/               # Session and auth helper functions
+│   ├── auth/               # Guards and auth helpers
 │   └── http/               # Shared HTTP schemas and response helpers
-├── modules/                # Product modules, organized by capability
+├── modules/                # Product modules organized by capability
 │   ├── health/
-│   │   ├── health.controller.ts
-│   │   └── health.module.ts
 │   └── todos/
-│       ├── todos.controller.ts # Elysia routes and HTTP status mapping
-│       ├── todos.dto.ts        # Request and response schemas
-│       ├── todos.mapper.ts     # Database record to response mapping
-│       ├── todos.module.ts     # Module factory registered by app.ts
-│       ├── todos.providers.ts  # Module-local provider construction
-│       ├── todos.repository.ts # Drizzle persistence functions
-│       ├── todos.service.ts    # Business rules and authorization decisions
-│       └── todos.types.ts      # Module-local TypeScript contracts
 └── services/               # Stateful infrastructure integrations
     ├── auth/
     ├── config/
@@ -40,57 +67,56 @@ packages/backend/src/
     └── dependencies/
 ```
 
-When adding `projects`, `billing`, `files`, or another product capability, create `src/modules/<module>/` first. Use the backend module standard in [`docs/backend-modules.md`](backend-modules.md). Keep route schemas close to the controller unless they are shared across modules. Put reusable cross-module contracts in `libraries/http`.
-
-Data reads should prefer Drizzle Queries API through `database.query.*`. Mutations can use Drizzle's insert/update/delete builders because the Queries API is read-focused.
+Backend modules follow the standard documented in [Backend Module Standard](backend-modules.md). In short: controllers own HTTP, services own business rules, repositories own persistence, DTOs own contracts, mappers own response shaping, and providers wire module-local dependencies.
 
 ## Frontend Layout
 
 ```text
 packages/frontend/src/
-├── app/                    # Next.js routing, layouts, and page shells
-├── components/             # Shared app components
-│   └── ui/                 # Generated registry components
-├── features/               # Product features, organized by capability
-│   └── todos/
-│       ├── api.ts          # Eden Treaty calls
-│       ├── query-keys.ts   # TanStack Query key factory
-│       ├── hooks/          # Feature hooks and mutations
-│       └── components/     # Feature-specific UI
-├── hooks/                  # Truly shared hooks
-└── lib/                    # Clients, config helpers, and small utilities
+├── app/          # Next.js routing, layouts, and thin page shells
+├── components/   # Shared app components
+│   └── ui/       # Generated registry components
+├── features/     # Product features organized by capability
+├── hooks/        # Truly shared React hooks
+└── lib/          # Clients, config helpers, and small utilities
 ```
 
-Route files under `app/` should stay small. If a page starts to contain product behavior, move that behavior into a feature and import the feature component back into the page.
+Route files under `app/` should stay small. Product behavior belongs in `features/<feature>/`, with API calls, query keys, hooks, and feature-specific UI kept together.
 
-Every server state feature should define query keys in one place and use TanStack Query invalidation after mutations. Eden Treaty remains the default transport for internal API calls.
+## Runtime Dependencies
 
-## Adding a Module
-
-1. Create `packages/backend/src/modules/<module>/`.
-2. Add `<module>.module.ts` and `<module>.controller.ts`.
-3. Add `<module>.providers.ts`, `<module>.service.ts`, `<module>.repository.ts`, `<module>.dto.ts`, `<module>.mapper.ts`, and `<module>.types.ts` when the module has business logic or persistence behavior.
-4. Register the module factory in `packages/backend/src/app.ts`.
-5. Add Drizzle schema under `services/database/schema/` and export it from `schema/index.ts`.
-6. Add frontend code under `packages/frontend/src/features/<feature>/`.
-7. Keep the route page under `app/` as a thin shell that renders the feature.
-8. Run `task typecheck`, `task lint`, and `task build` before publishing.
-
-## Dependency Injection
-
-`services/dependencies` creates the runtime container:
+Application-wide dependencies are created in `services/dependencies`:
 
 - `config`
 - `pool`
 - `database`
 - `auth`
 
-Modules receive the dependency container through their route factory and install it with the Elysia dependency plugin. Route handlers read injected services from Elysia context. Tests can override dependencies with `createApp({ database, auth, config, pool })`.
+The dependency container is installed into Elysia context with a plugin. Modules receive the container through their module factory and create module-local providers from it. Tests can override dependencies with `createApp({ database, auth, config, pool })`.
 
-## Development Standards
+## Request Flow
 
-- Avoid type assertions; prefer types that express the constraint directly.
-- Keep generated code in clearly documented folders.
-- Do not hide product behavior in global utilities.
-- Promote duplicated behavior only after at least two modules need it.
-- Update `AGENTS.md` and this document whenever a new boundary or convention is introduced.
+```text
+HTTP request
+  -> Elysia route
+  -> controller
+  -> guard
+  -> service
+  -> repository
+  -> database
+  -> mapper
+  -> response
+```
+
+Authentication belongs in guards. Ownership and business authorization belong in services. HTTP status mapping belongs in controllers.
+
+## Extension Path
+
+When adding a capability:
+
+1. Add the backend module under `packages/backend/src/modules/<feature>/`.
+2. Add database schema under `packages/backend/src/services/database/schema/` when persistence is needed.
+3. Register the backend module in `packages/backend/src/app.ts`.
+4. Add the frontend feature under `packages/frontend/src/features/<feature>/`.
+5. Add or update route shells under `packages/frontend/src/app/`.
+6. Run the validation commands in [Development Workflow](development.md).
