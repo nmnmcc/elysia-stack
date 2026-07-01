@@ -7,7 +7,8 @@ This documentation is organized as a reader path, not as a collection of notes. 
 1. [Project README](../README.md): what the template is, what it includes, and how to start it.
 2. [Architecture](architecture.md): package boundaries, dependency direction, runtime flow, and extension path.
 3. [Backend Module Standard](backend-modules.md): NestJS-inspired backend module rules.
-4. [Development Workflow](development.md): commands, validation, database workflow, and release checks.
+4. [Frontend Feature Standard](frontend-features.md): Next.js feature, API, hook, query, and route rules.
+5. [Development Workflow](development.md): commands, validation, database workflow, and release checks.
 
 ## Documentation Rules
 
@@ -27,4 +28,5 @@ Keep one document focused on one job. If a section starts explaining a different
 - `docs/README.md` is the documentation map.
 - `docs/architecture.md` owns system structure.
 - `docs/backend-modules.md` owns backend module conventions.
+- `docs/frontend-features.md` owns frontend feature conventions.
 - `docs/development.md` owns daily commands and validation workflow.

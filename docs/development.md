@@ -80,7 +80,7 @@ Remove generated build output such as `packages/backend/dist`, `packages/fronten
 
 1. Read [Architecture](architecture.md) for package boundaries.
 2. Follow [Backend Module Standard](backend-modules.md) for backend code.
-3. Put frontend product code under `packages/frontend/src/features/<feature>/`.
+3. Follow [Frontend Feature Standard](frontend-features.md) for frontend code.
 4. Keep route entry files under `packages/frontend/src/app/` thin.
 5. Add or update database migrations when schema changes.
 6. Run the validation commands above.

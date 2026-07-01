@@ -33,7 +33,10 @@
 - `components/ui/` are **generated files** from `@shark` registry — do not edit manually.
 - Prefer **server components**; only use `"use client"` when browser APIs or state are needed.
 - Route entry files under `app/` should stay thin. Put business UI under `features/<feature>/components/`.
-- Feature API calls, query keys, and mutations live under `features/<feature>/api.ts`, `query-keys.ts`, and `hooks/`.
+- Feature API calls must live in `features/<feature>/api.ts` and use Eden Treaty for internal backend routes.
+- Query keys must live in `features/<feature>/query-keys.ts`; mutations should invalidate centralized keys rather than ad hoc arrays.
+- Feature queries, mutations, invalidation, optimistic updates, and URL-state hooks live under `features/<feature>/hooks/`.
+- Feature-specific UI lives under `features/<feature>/components/`; shared UI lives under `components/`.
 - Pages using `nuqs` must split into server `page.tsx` + client `content.tsx` with `SectionBoundary` wrapping.
 - Use Eden Treaty for typed API calls and TanStack Query for cache invalidation and automatic refresh.
 - URL search params use **nuqs** (`useQueryState`/`useQueryStates`).
@@ -44,7 +47,7 @@
 - Each durable document must have one primary job. Split mixed topics into separate files and link between them.
 - Use this order for durable docs: purpose, context, concepts, procedure, checklist.
 - `README.md` is the public project entry point. `docs/README.md` is the documentation map.
-- Architecture belongs in `docs/architecture.md`; backend module rules belong in `docs/backend-modules.md`; commands and validation belong in `docs/development.md`.
+- Architecture belongs in `docs/architecture.md`; backend module rules belong in `docs/backend-modules.md`; frontend feature rules belong in `docs/frontend-features.md`; commands and validation belong in `docs/development.md`.
 - When adding a new architectural boundary or workflow, update the documentation map first, then the focused document.
 
 ## Template Evolution

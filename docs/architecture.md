@@ -81,7 +81,7 @@ packages/frontend/src/
 └── lib/          # Clients, config helpers, and small utilities
 ```
 
-Route files under `app/` should stay small. Product behavior belongs in `features/<feature>/`, with API calls, query keys, hooks, and feature-specific UI kept together.
+Frontend features follow the standard documented in [Frontend Feature Standard](frontend-features.md). In short: route files compose, feature components render workflows, hooks coordinate state, API files call Eden Treaty, and query key factories centralize TanStack Query cache identity.
 
 ## Runtime Dependencies
 

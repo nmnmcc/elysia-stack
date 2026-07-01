@@ -8,8 +8,9 @@ Read the documentation in this order:
 
 1. [Architecture](docs/architecture.md): system boundaries, dependency direction, runtime flow, and extension path.
 2. [Backend Module Standard](docs/backend-modules.md): NestJS-inspired backend module contract.
-3. [Development Workflow](docs/development.md): local commands, database workflow, validation, and smoke checks.
-4. [Documentation Map](docs/README.md): documentation ownership and writing rules.
+3. [Frontend Feature Standard](docs/frontend-features.md): Next.js feature, API, hook, query, and route contract.
+4. [Development Workflow](docs/development.md): local commands, database workflow, validation, and smoke checks.
+5. [Documentation Map](docs/README.md): documentation ownership and writing rules.
 
 ## Tech Stack
 
@@ -150,6 +151,7 @@ The system is organized around typed vertical slices:
 - `features/<feature>` contains product UI, Eden API calls, query keys, and TanStack Query hooks.
 - Eden Treaty consumes the backend `App` type without a code generation step.
 - TanStack Query handles cache state and invalidation after mutations.
+- Frontend feature conventions are documented in [Frontend Feature Standard](docs/frontend-features.md).
 
 See [Architecture](docs/architecture.md) for the full system model.
 
