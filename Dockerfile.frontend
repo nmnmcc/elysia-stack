@@ -2,6 +2,7 @@ FROM node:24-slim AS deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json yarn.lock .yarnrc.yml ./
+COPY packages/schema/package.json packages/schema/
 COPY packages/backend/package.json packages/backend/
 COPY packages/frontend/package.json packages/frontend/
 RUN yarn install
@@ -11,8 +12,10 @@ ARG BACKEND_URL=http://backend:30000
 ENV BACKEND_URL=${BACKEND_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY tsconfig.base.json tsconfig.json ./
+COPY packages/schema packages/schema
 COPY packages/backend packages/backend
 COPY packages/frontend packages/frontend
+RUN mkdir -p packages/frontend/public
 RUN yarn workspace @elysia-stack/frontend run next build
 
 FROM node:24-slim AS runtime

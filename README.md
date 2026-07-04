@@ -6,11 +6,12 @@ An opinionated full-stack TypeScript template built on Elysia, Bun, Next.js, Dri
 
 Read the documentation in this order:
 
-1. [Architecture](docs/architecture.md): system boundaries, dependency direction, runtime flow, and extension path.
-2. [Backend Module Standard](docs/backend-modules.md): NestJS-inspired backend module contract.
-3. [Frontend Feature Standard](docs/frontend-features.md): Next.js feature, API, hook, query, and route contract.
-4. [Development Workflow](docs/development.md): local commands, database workflow, validation, and smoke checks.
-5. [Documentation Map](docs/README.md): documentation ownership and writing rules.
+1. [Agent and Maintainer Guide](AGENTS.md): repository rules, reasons, and change workflow.
+2. [Architecture](docs/architecture.md): system boundaries, dependency direction, runtime flow, and extension path.
+3. [Backend Module Standard](docs/backend-modules.md): three-file backend module contract.
+4. [Frontend Feature Standard](docs/frontend-features.md): Next.js feature, API, hook, query, and route contract.
+5. [Development Workflow](docs/development.md): local commands, database workflow, validation, and smoke checks.
+6. [Documentation Map](docs/README.md): documentation ownership and writing rules.
 
 ## Tech Stack
 
@@ -47,12 +48,17 @@ elysia-stack/
 │   │   ├── drizzle.config.ts
 │   │   ├── Taskfile.yml
 │   │   └── package.json
-│   └── frontend/             # Next.js application
+│   ├── frontend/             # Next.js application
 │       ├── src/
 │       │   ├── app/          # Next.js App Router pages and layouts
 │       │   ├── features/     # Product features with API calls, hooks, query keys, and UI
 │       │   ├── lib/          # Eden API client, auth helpers, utilities
 │       │   └── components/   # Reusable UI components
+│   │   ├── Taskfile.yml
+│   │   ├── tsconfig.json
+│   │   └── package.json
+│   └── schema/               # Shared API and domain schemas
+│       ├── src/
 │       ├── Taskfile.yml
 │       ├── tsconfig.json
 │       └── package.json
@@ -123,6 +129,7 @@ task typecheck           # Type check all packages
 task lint                # Lint all packages
 task format              # Format code with Prettier
 task build               # Build backend and frontend
+task validate            # Run format, type, lint, and build checks
 ```
 
 Backend-specific commands:
@@ -141,8 +148,9 @@ The system is organized around typed vertical slices:
 ### Backend
 
 - `packages/backend/src/app.ts` composes application plugins and modules.
+- `packages/schema` owns reusable API and domain schemas with PascalCase names shared by schema values and inferred types; query schemas use `Query` as the leading verb.
 - `services/dependencies` creates `config`, `pool`, `database`, and `auth`.
-- `modules/<module>` contains NestJS-inspired module roles: module, controller, providers, service, repository, DTO, mapper, and types.
+- `modules/<module>` uses a three-file feature slice: `index.ts` for routes and module composition, `service.ts` for business rules, and `data.ts` for persistence.
 - Elysia route schemas generate OpenAPI docs and preserve Eden Treaty type safety.
 
 ### Frontend

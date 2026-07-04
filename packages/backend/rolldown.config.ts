@@ -12,5 +12,5 @@ export default defineConfig({
     minify: true,
   },
   platform: "node",
-  external: [/^[^./]/],
+  external: [/^(?!@elysia-stack\/schema(?:\/.*)?$)[^./]/],
 });

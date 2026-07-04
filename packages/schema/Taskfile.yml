@@ -1,0 +1,6 @@
+version: "3"
+
+tasks:
+  lint:
+    desc: Run ESLint
+    cmd: yarn eslint src/

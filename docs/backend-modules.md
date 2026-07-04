@@ -1,69 +1,54 @@
 # Backend Module Standard
 
-This document defines the backend module contract. It is intentionally close to NestJS in discipline while remaining Elysia-native in implementation.
+This document defines the backend module contract. It uses a small fixed feature-slice shape so modules are easy to create and review without copying NestJS boilerplate into an Elysia codebase.
 
 ## Purpose
 
-Backend modules need a fixed shape so new capabilities can be added without debating file placement or responsibility boundaries. The standard answers three questions:
+Backend modules need a predictable shape so new capabilities can be added without debating file placement or responsibility boundaries. The standard answers three questions:
 
 - Where does each kind of code go?
 - How do dependencies enter a module?
 - How does a request move from HTTP to business logic to persistence?
 
+The default is intentionally three files. This keeps small modules small while still preventing route handlers from absorbing business rules and database access. API/domain schemas live in `@elysia-stack/schema` so contracts can be reused without importing backend implementation files.
+
 ## Module Shape
 
-Each product module should use this structure:
+Each product module should start with this structure:
 
 ```text
 src/modules/<feature>/
-├── <feature>.module.ts       # Public module factory used by app.ts
-├── <feature>.controller.ts   # Elysia routes, HTTP status mapping, DTO binding
-├── <feature>.providers.ts    # Provider construction and Elysia decoration
-├── <feature>.service.ts      # Business rules and authorization decisions
-├── <feature>.repository.ts   # Database reads and writes
-├── <feature>.dto.ts          # Request, response, params, and query schemas
-├── <feature>.mapper.ts       # Database record to response mapping
-└── <feature>.types.ts        # Module-local TypeScript contracts
+├── index.ts     # Elysia plugin, routes, imported schema binding, status mapping, module composition
+├── service.ts   # Business rules and authorization decisions
+└── data.ts      # Database access and persistence mapping
 ```
 
-Small infrastructure modules may omit files they do not need. For example, the health module only needs a module and controller.
+Small infrastructure modules may omit files they do not need. For example, the health module only needs `index.ts`.
+
+Split extra files only when one of the three files becomes hard to scan or a type/schema is reused across modules. The split must preserve the same responsibilities instead of creating parallel conventions.
 
 ## Responsibility Model
 
 ```text
-module
-  -> controller
+index
   -> service
-  -> repository
+  -> data
 ```
 
-The module composes. The controller translates HTTP. The service decides business behavior. The repository persists data.
+The module entry translates HTTP and composes module-local services. The service decides business behavior. The data file persists and maps database records.
 
-### Module
+### Module Entry
 
-`<feature>.module.ts` exports the factory registered by `src/app.ts`.
-
-Allowed:
-
-- compose controller and providers
-- receive application dependencies
-
-Not allowed:
-
-- route handlers
-- business rules
-- database access
-
-### Controller
-
-`<feature>.controller.ts` owns HTTP concerns.
+`index.ts` exports the factory registered by `src/app.ts`.
 
 Allowed:
 
-- Elysia route paths and methods
-- DTO binding
+- Elysia plugin creation
+- route paths and methods
+- binding schemas imported from `@elysia-stack/schema`
 - OpenAPI metadata
 - guard calls
+- module-local service and data construction
 - mapping service results to HTTP statuses
 - structured errors like `{ message }`
 
@@ -71,40 +56,39 @@ Not allowed:
 
 - direct database queries
 - ownership checks that belong to business rules
-- constructing repositories inside handlers
-
-### Providers
-
-`<feature>.providers.ts` creates module-local providers and decorates them onto the Elysia context.
-
-This is the Elysia-stack equivalent of NestJS providers. Controllers should read providers from context, such as `todosService`, instead of constructing them per request.
+- defining API/domain schemas locally
+- persistence mapping that belongs in `data.ts`
 
 ### Service
 
-`<feature>.service.ts` owns product behavior.
+`service.ts` owns product behavior.
 
 Allowed:
 
 - workflow rules
 - state transition rules
 - authorization decisions after authentication identifies the user
-- coordination between repositories or external services
+- coordination between data objects or external services
+- service input and result types when they are only used by the service boundary
 
 Not allowed:
 
 - Elysia `status(...)` responses
 - request headers and cookies
 - route schema definitions
+- direct SQL or Drizzle query construction
 
-### Repository
+### Data
 
-`<feature>.repository.ts` owns persistence.
+`data.ts` owns persistence.
 
 Allowed:
 
 - `database.query.*` reads
 - Drizzle insert, update, and delete mutations
 - persistence-specific filtering and ordering
+- database record types and persistence input types
+- database record to domain/persistence mapping when needed
 
 Not allowed:
 
@@ -113,81 +97,62 @@ Not allowed:
 - request or cookie access
 - business status names such as `forbidden`
 
-### DTO
-
-`<feature>.dto.ts` owns HTTP schemas. Define params, query, body, and response schemas here with Elysia `t`.
-
-### Mapper
-
-`<feature>.mapper.ts` converts database records into response DTOs. Date serialization and internal-field removal belong here.
-
-### Types
-
-`<feature>.types.ts` owns module-local TypeScript contracts used by services, repositories, and mappers.
-
 ## Request Flow
 
 ```text
 HTTP request
-  -> controller
+  -> module route in index.ts
   -> guard
   -> service
-  -> repository
+  -> data
   -> database
-  -> mapper
-  -> controller response
+  -> module response in index.ts
 ```
 
-Authentication belongs in guards. Ownership and authorization decisions belong in services. HTTP status mapping belongs in controllers.
+Authentication belongs in guards. Ownership and authorization decisions belong in services. HTTP status mapping belongs in `index.ts`.
+
+## Schema Flow
+
+```text
+packages/schema
+  -> module route in index.ts
+  -> Eden Treaty App type
+  -> frontend API calls
+```
+
+API and domain schemas belong in `packages/schema`. Schema values use PascalCase and share the same exported name as their TypeScript type, such as `Todo` and `CreateTodoBody`. Query schemas use `Query` as a leading verb, such as `QueryTodos`. Do not add `Schema` or `Dto` suffixes. The package is the shared contract layer; keeping schemas there avoids backend route files becoming the only source of reusable API shape.
+
+Drizzle table schemas stay under `packages/backend/src/services/database/schema/`. They describe persistence shape and migration input, not public API contracts.
 
 ## Dependency Flow
 
 ```text
 services/dependencies
-  -> module
-  -> providers
-  -> controller context
+  -> app.ts
+  -> module factory
+  -> module-local service/data instances
 ```
 
-Application-wide dependencies are created once in `services/dependencies`. Module providers convert those dependencies into module-local services and repositories.
-
-## NestJS Mapping
-
-```text
-NestJS concept       Elysia-stack equivalent
-Module               <feature>.module.ts
-Controller           <feature>.controller.ts
-Provider             <feature>.providers.ts + Elysia decorate
-Service              <feature>.service.ts
-Repository           <feature>.repository.ts
-DTO                  <feature>.dto.ts
-Guard                libraries/auth or module-local guard helper
-Exception filter     controller status mapping with shared error DTOs
-Pipe                 Elysia schema validation
-Interceptor          Elysia plugin or library helper
-```
+Application-wide dependencies are created once in `services/dependencies`. Module entries receive those dependencies and construct the small service/data graph they need. This keeps dependency wiring visible without requiring a provider file for every module.
 
 ## Adding a Product Module
 
 1. Create `packages/backend/src/modules/<feature>/`.
-2. Add `<feature>.module.ts` and `<feature>.controller.ts`.
-3. Add `<feature>.providers.ts`, `<feature>.service.ts`, and `<feature>.repository.ts` when the module has business logic or persistence.
-4. Add `<feature>.dto.ts` for every route contract.
-5. Add `<feature>.mapper.ts` when response shape differs from database records.
-6. Add `<feature>.types.ts` for module-local service and repository contracts.
-7. Register the module in `packages/backend/src/app.ts`.
-8. Add Drizzle schema under `services/database/schema/` when persistence is needed.
-9. Add the matching frontend feature under `packages/frontend/src/features/<feature>/`.
-10. Run the validation commands in [Development Workflow](development.md).
+2. Add API/domain schemas under `packages/schema/src/<feature>.ts`.
+3. Add `index.ts` with the module factory, schema binding, routes, and status mapping.
+4. Add `service.ts` when the module has business rules, authorization decisions, or workflow coordination.
+5. Add `data.ts` when the module needs persistence.
+6. Register the module in `packages/backend/src/app.ts`.
+7. Add Drizzle schema under `services/database/schema/` when persistence is needed.
+8. Add the matching frontend feature under `packages/frontend/src/features/<feature>/`.
+9. Run the validation commands in [Development Workflow](development.md).
 
 ## Review Checklist
 
 - `app.ts` only composes application-level plugins and modules.
-- The module file only composes module pieces.
-- Controllers contain HTTP code but no persistence code.
+- The module `index.ts` contains HTTP code but no persistence code.
+- API/domain schemas are imported from `@elysia-stack/schema`, use PascalCase, and do not use `Schema` or `Dto` suffixes.
 - Services contain business decisions but no Elysia `status(...)` calls.
-- Repositories contain database code but no auth or request code.
-- DTO schemas cover params, query, body, and responses.
-- Providers decorate module-local services onto Elysia context.
+- Data files contain database code but no auth, request, cookie, or HTTP status code.
 - Shared helpers live under `libraries/`.
 - Stateful integrations live under `services/`.

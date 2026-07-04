@@ -1,59 +1,80 @@
+import {
+  CreateTodoBody,
+  ErrorResponse,
+  QueryTodos,
+  Todo,
+  TodoIdParams,
+  TodoList,
+  UpdateTodoBody,
+  type Todo as TodoContract,
+} from "@elysia-stack/schema";
 import { Elysia, t } from "elysia";
 
 import { requireSession } from "../../libraries/auth/guards";
-import { errorModel } from "../../libraries/http/errors";
 import { createDependenciesPlugin, type AppDependencies } from "../../services/dependencies";
-import { createTodoBodyDto, listTodosQueryDto, todoIdParamsDto, todoResponseDto, updateTodoBodyDto } from "./todos.dto";
-import { toTodoResponse } from "./todos.mapper";
-import { createTodosProviders } from "./todos.providers";
+import { TodosData, type TodoRecord } from "./data";
+import { TodosService } from "./service";
 
 const DEFAULT_PAGE_SIZE = 25;
 
-export function createTodosController(dependencies: AppDependencies) {
-  return new Elysia({ name: "todos.controller", prefix: "/api" })
+function toTodo(todo: TodoRecord): TodoContract {
+  return {
+    id: todo.id,
+    title: todo.title,
+    isCompleted: todo.isCompleted,
+    userId: todo.userId,
+    createdAt: todo.createdAt.toISOString(),
+    updatedAt: todo.updatedAt.toISOString(),
+  };
+}
+
+export function createTodosModule(dependencies: AppDependencies) {
+  const todosData = new TodosData(dependencies.database);
+  const todosService = new TodosService(todosData);
+
+  return new Elysia({ name: "todos.module", prefix: "/api" })
     .use(createDependenciesPlugin(dependencies))
-    .use(createTodosProviders(dependencies))
     .get(
       "/todos",
-      async ({ query, todosService }) => {
+      async ({ query }) => {
         const todos = await todosService.list({
           limit: query.limit ?? DEFAULT_PAGE_SIZE,
           offset: query.offset ?? 0,
         });
 
-        return todos.map(toTodoResponse);
+        return todos.map(toTodo);
       },
       {
         detail: { tags: ["Todos"] },
-        query: listTodosQueryDto,
+        query: QueryTodos,
         response: {
-          200: t.Array(todoResponseDto),
+          200: TodoList,
         },
       },
     )
     .get(
       "/todos/:id",
-      async ({ params, status, todosService }) => {
+      async ({ params, status }) => {
         const todo = await todosService.findById(params.id);
 
         if (!todo) {
           return status(404, { message: "Todo not found" });
         }
 
-        return toTodoResponse(todo);
+        return toTodo(todo);
       },
       {
         detail: { tags: ["Todos"] },
-        params: todoIdParamsDto,
+        params: TodoIdParams,
         response: {
-          200: todoResponseDto,
-          404: errorModel,
+          200: Todo,
+          404: ErrorResponse,
         },
       },
     )
     .post(
       "/todos",
-      async ({ auth, body, request, status, todosService }) => {
+      async ({ auth, body, request, status }) => {
         const sessionResult = await requireSession(auth, request);
         if (!sessionResult.isAuthenticated) {
           return status(401, { message: "Authentication required" });
@@ -64,20 +85,20 @@ export function createTodosController(dependencies: AppDependencies) {
           userId: sessionResult.session.user.id,
         });
 
-        return toTodoResponse(todo);
+        return toTodo(todo);
       },
       {
         detail: { tags: ["Todos"] },
-        body: createTodoBodyDto,
+        body: CreateTodoBody,
         response: {
-          200: todoResponseDto,
-          401: errorModel,
+          200: Todo,
+          401: ErrorResponse,
         },
       },
     )
     .patch(
       "/todos/:id",
-      async ({ auth, body, params, request, status, todosService }) => {
+      async ({ auth, body, params, request, status }) => {
         const sessionResult = await requireSession(auth, request);
         if (!sessionResult.isAuthenticated) {
           return status(401, { message: "Authentication required" });
@@ -98,23 +119,23 @@ export function createTodosController(dependencies: AppDependencies) {
           return status(403, { message: "You cannot update this todo" });
         }
 
-        return toTodoResponse(result.todo);
+        return toTodo(result.todo);
       },
       {
         detail: { tags: ["Todos"] },
-        params: todoIdParamsDto,
-        body: updateTodoBodyDto,
+        params: TodoIdParams,
+        body: UpdateTodoBody,
         response: {
-          200: todoResponseDto,
-          401: errorModel,
-          403: errorModel,
-          404: errorModel,
+          200: Todo,
+          401: ErrorResponse,
+          403: ErrorResponse,
+          404: ErrorResponse,
         },
       },
     )
     .delete(
       "/todos/:id",
-      async ({ auth, params, request, status, todosService }) => {
+      async ({ auth, params, request, status }) => {
         const sessionResult = await requireSession(auth, request);
         if (!sessionResult.isAuthenticated) {
           return status(401, { message: "Authentication required" });
@@ -137,12 +158,12 @@ export function createTodosController(dependencies: AppDependencies) {
       },
       {
         detail: { tags: ["Todos"] },
-        params: todoIdParamsDto,
+        params: TodoIdParams,
         response: {
           204: t.Void(),
-          401: errorModel,
-          403: errorModel,
-          404: errorModel,
+          401: ErrorResponse,
+          403: ErrorResponse,
+          404: ErrorResponse,
         },
       },
     );

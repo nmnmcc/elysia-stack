@@ -1,6 +1,9 @@
 version: "3"
 
 includes:
+  schema:
+    taskfile: "./packages/schema/Taskfile.yml"
+    dir: "./packages/schema"
   frontend:
     taskfile: "./packages/frontend/Taskfile.yml"
     dir: "./packages/frontend"
@@ -73,6 +76,14 @@ tasks:
       - backend:build
       - frontend:build
 
+  validate:
+    desc: Run formatting, type, lint, and build checks
+    cmds:
+      - task: format:check
+      - task: typecheck
+      - task: lint
+      - task: build
+
   typecheck:
     desc: Type check all packages
     cmd: yarn tsc -b --noEmit
@@ -80,6 +91,7 @@ tasks:
   lint:
     desc: Lint all packages
     deps:
+      - schema:lint
       - frontend:lint
       - backend:lint
 

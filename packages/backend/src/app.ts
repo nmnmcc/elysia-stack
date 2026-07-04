@@ -2,8 +2,8 @@ import { openapi } from "@elysia/openapi";
 import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 
-import { createHealthModule } from "./modules/health/health.module";
-import { createTodosModule } from "./modules/todos/todos.module";
+import { createHealthModule } from "./modules/health";
+import { createTodosModule } from "./modules/todos";
 import { createDependencies, createDependenciesPlugin, type AppDependencyOverrides } from "./services/dependencies";
 
 export function createApp(overrides: AppDependencyOverrides = {}) {

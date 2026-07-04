@@ -4,28 +4,38 @@
 
 ## Code Style
 
-- **No `as` type assertions** unless the type system genuinely cannot express the constraint.
-- **Prefer Drizzle Queries API** (`database.query.*`) over query builder (`database.select().from()...`).
-- **No conditional spread for optional properties** — use `key: x ?? undefined` instead of `...(x ? { key: x } : {})`.
-- **`database` is always spelled out**, never abbreviated to `db`.
-- **`index.ts` may contain implementation code**, not just re-exports. Files within the same directory must not import from the directory's own `index.ts`.
-- **Boolean variables** must use `is`/`has`/`should`/`can` prefixes or adjective/past-participle forms.
-- **Prefer `export * from "..."`** in barrel files over listing individual exports.
+- **No `as` type assertions** unless the type system genuinely cannot express the constraint. Prefer typed variables, `satisfies`, narrowing, or helper functions so unsafe escapes stay visible.
+- **Prefer Drizzle Queries API** (`database.query.*`) over query builder (`database.select().from()...`) for reads. This keeps relation-aware reads consistent and easier to copy across repositories.
+- **No conditional spread for optional properties**. Use `key: x ?? undefined` instead of `...(x ? { key: x } : {})` so object shapes remain obvious to TypeScript and reviewers.
+- **`database` is always spelled out**, never abbreviated to `db`. The full name makes injected persistence dependencies easy to scan and avoids local aliases drifting across modules.
+- **`index.ts` may contain implementation code**, not just re-exports. Files within the same directory must not import from the directory's own `index.ts`, because that creates avoidable circular-import risk.
+- **Boolean variables** must use `is`/`has`/`should`/`can` prefixes or adjective/past-participle forms. This keeps conditions readable without requiring readers to inspect the assigned expression.
+- **Prefer `export * from "..."`** in barrel files over listing individual exports. This keeps barrels mechanical and reduces churn when symbols are added.
+
+## Standard Workflow
+
+1. Read this file, then the nearest focused document before changing code.
+2. Identify the owning layer: contract, runtime code, persistence, presentation, configuration, tests, or documentation.
+3. Copy the closest existing pattern before adding a new abstraction.
+4. Make the smallest complete change, including code, docs, and validation when relevant.
+5. Run the narrowest useful check first, then `task validate` before publishing shared changes.
+6. If a durable rule changes, update the nearest documentation with the reason for the rule.
 
 ## Backend (`packages/backend/`)
 
 - Run the Elysia server with Bun in development and production.
 - Keep runtime configuration in `services/config/index.ts`.
-- Wire backend services through `services/dependencies/index.ts`; route handlers should read injected services from Elysia context.
+- Wire application-wide backend services through `services/dependencies/index.ts`; module-local services should be constructed in the module entry from those dependencies. This keeps injection explicit without adding provider boilerplate.
 - Export the Elysia `App` type from `src/app.ts` so Eden Treaty clients stay type-safe.
 - Keep `src/app.ts` as application composition only. Put domain code under `src/modules/<module>/`.
-- Backend modules follow a NestJS-inspired contract: `<module>.module.ts`, `<module>.controller.ts`, `<module>.providers.ts`, `<module>.service.ts`, `<module>.repository.ts`, `<module>.dto.ts`, `<module>.mapper.ts`, and `<module>.types.ts` as needed.
-- Controllers own HTTP routing, DTO binding, OpenAPI metadata, guard calls, and status mapping. They must not query the database directly.
-- Services own business rules and authorization decisions. They must not return Elysia `status(...)` responses.
-- Repositories own persistence and must not access request, auth, cookie, or HTTP status APIs.
-- Providers construct module-local services/repositories and decorate them onto Elysia context.
+- Backend modules default to a three-file feature slice: `index.ts`, `service.ts`, and `data.ts`. This keeps placement predictable without forcing empty NestJS-style files into small modules.
+- `index.ts` owns the Elysia plugin, routes, imported schema binding, OpenAPI metadata, guard calls, module-local service construction, and HTTP status mapping. It must not query the database directly.
+- `service.ts` owns business rules and authorization decisions. It must not return Elysia `status(...)` responses.
+- `data.ts` owns persistence and persistence mapping. It must not access request, auth, cookie, or HTTP status APIs.
+- Split extra files only when one of the three files becomes hard to scan or a schema/type is reused across modules. This keeps the default simple while leaving an escape hatch for real complexity.
 - Put cross-module helpers under `src/libraries/`. Put stateful external integrations under `src/services/`.
-- Keep route schemas beside their route handlers unless a schema is reused across modules.
+- Keep API and domain schemas in `packages/schema`. Schema values use PascalCase and share the same exported name as their TypeScript type, with no `Schema` or `Dto` suffix; query schemas use `Query` as a leading verb, such as `QueryTodos`. This keeps runtime contracts and inferred types paired without backend-specific naming leaking across packages.
+- Keep Drizzle table schemas in `packages/backend/src/services/database/schema/`. Database schemas describe persistence shape, not API/domain contracts.
 - Return structured error objects like `{ message }` for non-2xx API responses.
 
 ## Frontend (`packages/frontend/`)
@@ -49,6 +59,7 @@
 - `README.md` is the public project entry point. `docs/README.md` is the documentation map.
 - Architecture belongs in `docs/architecture.md`; backend module rules belong in `docs/backend-modules.md`; frontend feature rules belong in `docs/frontend-features.md`; commands and validation belong in `docs/development.md`.
 - When adding a new architectural boundary or workflow, update the documentation map first, then the focused document.
+- Every persistent rule must include its reason. Rules without reasons become cargo cult and are harder to revise safely.
 
 ## Template Evolution
 

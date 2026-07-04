@@ -4,7 +4,7 @@ import config from "./config";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  transpilePackages: ["@elysia-stack/backend"],
+  transpilePackages: ["@elysia-stack/backend", "@elysia-stack/schema"],
   allowedDevOrigins: ["127.0.0.1"],
   async rewrites() {
     return [

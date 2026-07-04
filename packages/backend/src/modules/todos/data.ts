@@ -2,9 +2,25 @@ import { eq } from "drizzle-orm";
 
 import type { Database } from "../../services/database";
 import { todos } from "../../services/database/schema/todo";
-import type { CreateTodoInput, ListTodosInput, UpdateTodoInput } from "./todos.types";
 
-export class TodosRepository {
+export type TodoRecord = typeof todos.$inferSelect;
+
+export interface ListTodosInput {
+  readonly limit: number;
+  readonly offset: number;
+}
+
+export interface CreateTodoInput {
+  readonly title: string;
+  readonly userId: string;
+}
+
+export interface UpdateTodoInput {
+  readonly title?: string;
+  readonly isCompleted?: boolean;
+}
+
+export class TodosData {
   constructor(private readonly database: Database) {}
 
   list(input: ListTodosInput) {

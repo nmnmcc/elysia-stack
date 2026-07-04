@@ -6,6 +6,7 @@
     "./schema": "./src/services/database/schema/index.ts"
   },
   "dependencies": {
+    "@elysia-stack/schema": "workspace:*",
     "@elysia/openapi": "1.4.15",
     "@elysiajs/cors": "1.4.2",
     "@sinclair/typebox": "^0.34.49",
